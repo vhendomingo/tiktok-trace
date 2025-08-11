@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>TikTok User Trace — Live</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main class="card">
+    <h1>TikTok User Trace</h1>
+
+    <div class="row">
+      <input id="username" placeholder="TikTok username (no @)" />
+      <button id="searchBtn">Search</button>
+    </div>
+
+    <div id="notice" class="muted">
+      This tool scrapes public TikTok profile pages. Location is **inferred** from the user's bio / public text (not guaranteed).
+    </div>
+
+    <section id="result" class="hidden">
+      <div class="profile">
+        <div>
+          <div id="displayName" class="big">—</div>
+          <div id="uname" class="muted">@—</div>
+          <div id="bio" class="muted small">Bio: —</div>
+        </div>
+        <div class="stats">
+          <div><strong id="followers">—</strong><div class="muted small">Followers</div></div>
+          <div><strong id="likes">—</strong><div class="muted small">Likes</div></div>
+          <div><strong id="videos">—</strong><div class="muted small">Videos</div></div>
+        </div>
+      </div>
+
+      <div class="grid">
+        <div>
+          <div class="label">Inferred Location</div>
+          <div id="location" class="value">—</div>
+          <div id="locConfidence" class="muted small">confidence: —</div>
+        </div>
+        <div>
+          <div class="label">Fetched At</div>
+          <div id="fetchedAt" class="value">—</div>
+        </div>
+      </div>
+
+      <div class="row buttons">
+        <button id="exportBtn">Export CSV</button>
+        <button id="clearBtn" class="secondary">Clear</button>
+      </div>
+    </section>
+
+    <div id="error" class="error hidden"></div>
+  </main>
+
+<script>
+const API_BASE = ""; // empty -> same origin. If backend hosted elsewhere set the full URL, e.g. "https://your-app.onrender.com"
+
+function $(id){ return document.getElementById(id); }
+function show(el){ el.classList.remove('hidden'); }
+function hide(el){ el.classList.add('hidden'); }
+
+async function fetchProfile(username){
+  const url = (API_BASE || "") + `/api/user/${encodeURIComponent(username)}`;
+  const res = await fetch(url);
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(res.status + " " + text);
+  }
+  return await res.json();
+}
+
+document.getElementById('searchBtn').addEventListener('click', async ()=>{
+  const u = ( $('username').value || '' ).trim().replace(/^@/,'');
+  if (!u) return alert('Enter a TikTok username (no @).');
+
+  hide($('error'));
+  $('displayName').textContent = 'Loading...';
+  $('uname').textContent = '@' + u;
+  $('bio').textContent = 'Bio: …';
+  show($('result'));
+
+  try {
+    const data = await fetchProfile(u);
+    // populate UI
+    $('displayName').textContent = data.display_name || data.username;
+    $('uname').textContent = '@' + data.username;
+    $('bio').textContent = 'Bio: ' + (data.bio || '—');
+    $('followers').textContent = (data.followers != null) ? Number(data.followers).toLocaleString() : '—';
+    $('likes').textContent = (data.likes != null) ? Number(data.likes).toLocaleString() : '—';
+    $('videos').textContent = (data.videos != null) ? Number(data.videos).toLocaleString() : '—';
+    $('location').textContent = data.location || 'Unknown';
+    $('locConfidence').textContent = 'confidence: ' + (data.location_confidence || '—');
+    $('fetchedAt').textContent = new Date(data.fetched_at || Date.now()).toLocaleString();
+
+    // store for csv
+    window.__CURRENT = data;
+  } catch (err) {
+    hide($('result'));
+    $('error').textContent = 'Error: ' + err.message;
+    show($('error'));
+    console.error(err);
+  }
+});
+
+document.getElementById('exportBtn').addEventListener('click', ()=>{
+  const d = window.__CURRENT;
+  if (!d) return alert('No data to export. Fetch a profile first.');
+  const headers = ['username','display_name','bio','followers','likes','videos','location','location_confidence','fetched_at'];
+  const row = headers.map(h => {
+    const v = d[h] == null ? '' : String(d[h]).replace(/"/g,'""');
+    return `"${v}"`;
+  }).join(',');
+  const csv = headers.join(',') + '\r\n' + row;
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `tiktok_${d.username}_trace.csv`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+});
+
+document.getElementById('clearBtn').addEventListener('click', ()=>{
+  hide($('result'));
+  window.__CURRENT = null;
+  $('username').value = '';
+});
+</script>
+</body>
+</html>
