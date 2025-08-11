@@ -1,0 +1,83 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>TikTok Trace (Live)</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="card">
+    <h1>TikTok Trace (Live)</h1>
+    <div class="row">
+      <input id="username" placeholder="username (no @)" />
+      <button id="btn">Fetch</button>
+    </div>
+    <div id="note" class="muted">Fetching public TikTok profile pages and inferring location from bio.</div>
+
+    <section id="result" class="hidden">
+      <h2 id="name">—</h2>
+      <div id="bio" class="muted small">—</div>
+      <div class="stats">
+        <div><strong id="followers">—</strong><div class="muted small">Followers</div></div>
+        <div><strong id="likes">—</strong><div class="muted small">Likes</div></div>
+        <div><strong id="videos">—</strong><div class="muted small">Videos</div></div>
+      </div>
+      <div class="grid">
+        <div><div class="label">Location</div><div id="location" class="value">—</div></div>
+        <div><div class="label">Fetched</div><div id="fetched" class="value">—</div></div>
+      </div>
+      <div class="row buttons">
+        <button id="export">Export CSV</button>
+        <button id="clear" class="secondary">Clear</button>
+      </div>
+    </section>
+
+    <div id="err" class="error hidden"></div>
+  </main>
+
+<script>
+const API_BASE = ""; // same origin
+const el = id => document.getElementById(id);
+async function fetchProfile(u){
+  const res = await fetch(`${API_BASE}/api/profile/${encodeURIComponent(u)}`);
+  if (!res.ok) throw new Error('Fetch failed: ' + res.status);
+  return await res.json();
+}
+
+el('btn').addEventListener('click', async ()=>{
+  const u = (el('username').value||'').trim().replace(/^@/,'');
+  if (!u) return alert('Enter username');
+  el('err').classList.add('hidden');
+  el('name').textContent = 'Loading...';
+  el('result').classList.remove('hidden');
+  try {
+    const d = await fetchProfile(u);
+    el('name').textContent = d.display_name || d.username;
+    el('bio').textContent = d.bio || '';
+    el('followers').textContent = d.followers?.toLocaleString() ?? '—';
+    el('likes').textContent = d.likes?.toLocaleString() ?? '—';
+    el('videos').textContent = d.videos?.toLocaleString() ?? '—';
+    el('location').textContent = d.location || 'Unknown';
+    el('fetched').textContent = new Date(d.fetched_at).toLocaleString();
+    window.__CURRENT = d;
+  } catch (err) {
+    el('err').textContent = err.message;
+    el('err').classList.remove('hidden');
+    console.error(err);
+  }
+});
+
+el('export').addEventListener('click', ()=>{
+  const d = window.__CURRENT;
+  if (!d) return alert('Fetch first');
+  const keys = ['username','display_name','bio','followers','likes','videos','location','location_confidence','fetched_at'];
+  const row = keys.map(k => `"${(d[k] ?? '').toString().replace(/"/g,'""')}"`).join(',');
+  const csv = keys.join(',') + '\r\n' + row;
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `tiktok_${d.username}_trace.csv`; a.click();
+});
+el('clear').addEventListener('click', ()=>{ el('username').value=''; el('result').classList.add('hidden'); window.__CURRENT = null; });
+</script>
+</body>
+</html>
