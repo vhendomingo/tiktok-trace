@@ -37,6 +37,7 @@
   </main>
 
 <script>
+const el = id => document.getElementById(id);
 const API_BASE = "https://tiktok-trace.onrender.com";
 
 async function fetchProfile(u){
@@ -82,4 +83,5 @@ el('clear').addEventListener('click', ()=>{ el('username').value=''; el('result'
 </script>
 </body>
 </html>
+
 
