@@ -37,13 +37,14 @@
   </main>
 
 <script>
-const API_BASE = ""; // same origin
-const el = id => document.getElementById(id);
+const API_BASE = "https://tiktok-trace.onrender.com";
+
 async function fetchProfile(u){
-  const res = await fetch(`${API_BASE}/api/profile/${encodeURIComponent(u)}`);
+  const res = await fetch(`${API_BASE}/trace/${encodeURIComponent(u)}`);
   if (!res.ok) throw new Error('Fetch failed: ' + res.status);
   return await res.json();
 }
+
 
 el('btn').addEventListener('click', async ()=>{
   const u = (el('username').value||'').trim().replace(/^@/,'');
@@ -81,3 +82,4 @@ el('clear').addEventListener('click', ()=>{ el('username').value=''; el('result'
 </script>
 </body>
 </html>
+
